@@ -1,69 +1,73 @@
-#!/usr/bin/python3
-"""LFU caching.
+#!/usr/bin/env python3
+"""Task 5: Least Frequently Used caching module.
 """
-BaseCaching = __import__('base_caching').BaseCaching
+from collections import OrderedDict
+
+from base_caching import BaseCaching
 
 
 class LFUCache(BaseCaching):
-    """LFUCache class.
+    """Represents an object that allows storing and
+    retrieving items from a dictionary with a LFU
+    removal mechanism when the limit is reached.
     """
-    
     def __init__(self):
-        """Constructor.
+        """Initializes the cache.
         """
         super().__init__()
-        self.queue = []
-        self.count = {}
-    
+        self.cache_data = OrderedDict()
+        self.keys_freq = []
+
+    def __reorder_items(self, mru_key):
+        """Reorders the items in this cache based on the most
+        recently used item.
+        """
+        max_positions = []
+        mru_freq = 0
+        mru_pos = 0
+        ins_pos = 0
+        for i, key_freq in enumerate(self.keys_freq):
+            if key_freq[0] == mru_key:
+                mru_freq = key_freq[1] + 1
+                mru_pos = i
+                break
+            elif len(max_positions) == 0:
+                max_positions.append(i)
+            elif key_freq[1] < self.keys_freq[max_positions[-1]][1]:
+                max_positions.append(i)
+        max_positions.reverse()
+        for pos in max_positions:
+            if self.keys_freq[pos][1] > mru_freq:
+                break
+            ins_pos = pos
+        self.keys_freq.pop(mru_pos)
+        self.keys_freq.insert(ins_pos, [mru_key, mru_freq])
+
     def put(self, key, item):
-        """Put method.
+        """Adds an item in the cache.
         """
-        pass
-                
-        
+        if key is None or item is None:
+            return
+        if key not in self.cache_data:
+            if len(self.cache_data) + 1 > BaseCaching.MAX_ITEMS:
+                lfu_key, _ = self.keys_freq[-1]
+                self.cache_data.pop(lfu_key)
+                self.keys_freq.pop()
+                print("DISCARD:", lfu_key)
+            self.cache_data[key] = item
+            ins_index = len(self.keys_freq)
+            for i, key_freq in enumerate(self.keys_freq):
+                if key_freq[1] == 0:
+                    ins_index = i
+                    break
+            self.keys_freq.insert(ins_index, [key, 0])
+        else:
+            self.cache_data[key] = item
+            self.__reorder_items(key)
+
     def get(self, key):
-        """Get method.
+        """Retrieves an item by key.
         """
-        if key in self.cache_data:
-            self.mru = key
-            return self.cache_data[key]
-        return None
-
-
-if __name__ == "__main__":
-    my_cache = LFUCache()
-    my_cache.put("A", "Hello")
-    my_cache.put("B", "World")
-    my_cache.put("C", "Holberton")
-    my_cache.put("D", "School")
-    my_cache.print_cache()
-    print(my_cache.get("B"))
-    my_cache.put("E", "Battery")
-    my_cache.print_cache()
-    my_cache.put("C", "Street")
-    my_cache.print_cache()
-    print(my_cache.get("A"))
-    print(my_cache.get("B"))
-    print(my_cache.get("C"))
-    my_cache.put("F", "Mission")
-    my_cache.print_cache()
-    my_cache.put("G", "San Francisco")
-    my_cache.print_cache()
-    my_cache.put("H", "H")
-    my_cache.print_cache()
-    my_cache.put("I", "I")
-    my_cache.print_cache()
-    print(my_cache.get("I"))
-    print(my_cache.get("H"))
-    print(my_cache.get("I"))
-    print(my_cache.get("H"))
-    print(my_cache.get("I"))
-    print(my_cache.get("H"))
-    my_cache.put("J", "J")
-    my_cache.print_cache()
-    my_cache.put("K", "K")
-    my_cache.print_cache()
-    my_cache.put("L", "L")
-    my_cache.print_cache()
-    my_cache.put("M", "M")
-    my_cache.print_cache()
+        if key is not None and key in self.cache_data:
+            self.__reorder_items(key)
+        return self.cache_data.get(key, None)
